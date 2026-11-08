@@ -8,7 +8,7 @@ Profiling showed 98-99% of cycles in `stabilize()`, so all of the optimizations 
  
 To reproduce my baseline numbers, check out the original code, rebuild, and run:
 ```bash
-git checkout <BASELINE_COMMIT>
+git checkout 71a3de0bc98e8a456c9a8798237f9e5864310342
 make clean && make all
 time ./sandpile.exe 401
 cp identity.png identity-baseline.png
