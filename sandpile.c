@@ -7,6 +7,7 @@
 #include <string.h>
 #include <sys/time.h>
 
+
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
@@ -26,6 +27,10 @@ static int *lo, *hi; // to track active range per row
 static int W;
 
 #define G(i, j) grid[((size_t)(i)+1) * W + (j) + 1]
+
+static int *topple;  // topples per cell
+
+#define TP(i, j) topple[((size_t)(i) + 1) * W + (j) + 1]
 
 static void precompute_row_ranges(void) {
   lo = malloc(N * sizeof(int));
@@ -93,25 +98,33 @@ static void render(char *filename) {
   free(pixels);
 }
 
-static void stabilize() {
+static void stabilize(void) {
   int changed;
   do {
     changed = 0;
+
+    #pragma omp parallel for reduction(|:changed) schedule(static)
     for (int i = 0; i < N; ++i) {
       int *row = &G(i, 0);
+      int *trow = &TP(i, 0);
       for (int j = lo[i]; j <= hi[i]; ++j) {
         int v = row[j];
-        if (v < 4) continue;
-        changed = 1;
-        int t = v >> 2;      // number of topplings is now v / 4
+        int t = v >> 2;
+        trow[j] = t;
         row[j] = v & 3;
-        row[j - 1] += t;
-        row[j + 1] += t;
-        row[j - W] += t;
-        row[j + W] += t;
+        changed |= t;
       }
     }
-  } while (changed);
+    if (!changed) break;
+
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < N; ++i) {
+      int *row = &G(i, 0);
+      int *trow = &TP(i, 0);
+      for (int j = 0; j < N; ++j)
+        row[j] += trow[j - 1] + trow[j + 1] + trow[j - W] + trow[j + W];
+    }
+  } while (1);
 }
 
 void find_identity() {
@@ -144,12 +157,16 @@ int main(int argc, char **argv) {
   W = N + 2;
   grid = calloc((size_t)W * W, sizeof(int));
   if (!grid) die("malloc failed");
-  precompute_row_ranges();;
+
+  topple = calloc((size_t)W * W, sizeof(int));
+  if (!topple) die("malloc failed");
+
+  precompute_row_ranges();
 
   find_identity();
 
   render("identity.png");
-  free(grid); free(lo); free(hi);
+  free(grid); free(lo); free(hi); free(topple);
 
   return EXIT_SUCCESS;
 }
