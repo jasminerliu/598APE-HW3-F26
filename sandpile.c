@@ -94,19 +94,21 @@ static void render(char *filename) {
 }
 
 static void stabilize() {
-  int changed = 0;
+  int changed;
   do {
     changed = 0;
     for (int i = 0; i < N; ++i) {
       int *row = &G(i, 0);
       for (int j = lo[i]; j <= hi[i]; ++j) {
-        if (row[j] < 4) continue;
-        changed = 1; // topple it
-        row[j] -= 4;
-        row[j - 1]++;
-        row[j + 1]++;
-        row[j - W]++;
-        row[j + W]++;
+        int v = row[j];
+        if (v < 4) continue;
+        changed = 1;
+        int t = v >> 2;      // number of topplings is now v / 4
+        row[j] = v & 3;
+        row[j - 1] += t;
+        row[j + 1] += t;
+        row[j - W] += t;
+        row[j + W] += t;
       }
     }
   } while (changed);
