@@ -21,10 +21,11 @@ static void die(const char *s) {
 }
 
 int N = 801;
-static int *g; // changed to flat array
-static int *lo, *hi // to track active range per row
+static int *grid; // changed to flat array
+static int *lo, *hi; // to track active range per row
+static int W;
 
-#define G(i, j) g[((size_t)(i)+1) * W + (j) + 1]
+#define G(i, j) grid[((size_t)(i)+1) * W + (j) + 1]
 
 static void precompute_row_ranges(void) {
   lo = malloc(N * sizeof(int));
@@ -139,14 +140,14 @@ int main(int argc, char **argv) {
   N = (int)parsed;
 
   W = N + 2;
-  g = calloc((size_t)W * W, sizeof(int));
-  if (!g) die("malloc failed");
-  build_ranges();
+  grid = calloc((size_t)W * W, sizeof(int));
+  if (!grid) die("malloc failed");
+  precompute_row_ranges();;
 
   find_identity();
 
   render("identity.png");
-  free(g); free(lo); free(hi);
+  free(grid); free(lo); free(hi);
 
   return EXIT_SUCCESS;
 }
