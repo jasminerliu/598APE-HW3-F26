@@ -1,5 +1,9 @@
 # CS598APE HW3
 
+## Artifact:
+
+Run on course VM.
+
 This repository contains code for homework 3 of CS598APE. It is relatively
 simple in comparison to HW1 and HW2 to ensure you have enough time to work on
 the course project. 
