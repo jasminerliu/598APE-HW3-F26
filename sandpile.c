@@ -14,8 +14,6 @@
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
-
-
 static void die(const char *s) {
   fprintf(stderr, "%s\n", s);
   exit(1);
@@ -27,10 +25,6 @@ static int *lo, *hi; // to track active range per row
 static int W;
 
 #define G(i, j) grid[((size_t)(i)+1) * W + (j) + 1]
-
-static int *topple;  // topples per cell
-
-#define TP(i, j) topple[((size_t)(i) + 1) * W + (j) + 1]
 
 static void precompute_row_ranges(void) {
   lo = malloc(N * sizeof(int));
@@ -102,29 +96,24 @@ static void stabilize(void) {
   int changed;
   do {
     changed = 0;
-
-    #pragma omp parallel for reduction(|:changed) schedule(static)
-    for (int i = 0; i < N; ++i) {
-      int *row = &G(i, 0);
-      int *trow = &TP(i, 0);
-      for (int j = lo[i]; j <= hi[i]; ++j) {
-        int v = row[j];
-        int t = v >> 2;
-        trow[j] = t;
-        row[j] = v & 3;
-        changed |= t;
+    for (int c = 0; c < 3; ++c) {
+      #pragma omp parallel for reduction(|:changed) schedule(static)
+      for (int i = c; i < N; i += 3) {
+        int *row = &G(i, 0);
+        for (int j = lo[i]; j <= hi[i]; ++j) {
+          int v = row[j];
+          if (v < 4) continue;
+          int t = v >> 2;
+          changed = 1;
+          row[j] = v & 3;
+          row[j - 1] += t;
+          row[j + 1] += t;
+          row[j - W] += t;
+          row[j + W] += t;
+        }
       }
     }
-    if (!changed) break;
-
-    #pragma omp parallel for schedule(static)
-    for (int i = 0; i < N; ++i) {
-      int *row = &G(i, 0);
-      int *trow = &TP(i, 0);
-      for (int j = 0; j < N; ++j)
-        row[j] += trow[j - 1] + trow[j + 1] + trow[j - W] + trow[j + W];
-    }
-  } while (1);
+  } while (changed);
 }
 
 void find_identity() {
@@ -158,15 +147,12 @@ int main(int argc, char **argv) {
   grid = calloc((size_t)W * W, sizeof(int));
   if (!grid) die("malloc failed");
 
-  topple = calloc((size_t)W * W, sizeof(int));
-  if (!topple) die("malloc failed");
-
   precompute_row_ranges();
 
   find_identity();
 
   render("identity.png");
-  free(grid); free(lo); free(hi); free(topple);
+  free(grid); free(lo); free(hi);
 
   return EXIT_SUCCESS;
 }
